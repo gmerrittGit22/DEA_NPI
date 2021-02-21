@@ -52,7 +52,6 @@ from ui.ui_automate import Ui_Dialog as Ui_Automate_Dialog
 from ui.ui_agree import Ui_Dialog as Ui_Agree_Dialog
 
 # utils
-import utils.util_path as paths 
 import utils.util_log as log
 import utils.util_crypt as crypt
 import utils.util as util
@@ -108,11 +107,11 @@ class SplashDialog(QDialog, Ui_Splash_Dialog):
         # frameless
         self.setWindowFlags(Qt.FramelessWindowHint)
         # icon
-        self.setWindowIcon(QtGui.QIcon(paths.resource_path(sys, 'icon'))) 
+        self.setWindowIcon(QtGui.QIcon(util.resource_path(sys, 'icon'))) 
         # set logo
         lh = 200
         lw = 460
-        self.lb_logo.setPixmap(QtGui.QPixmap(paths.resource_path(sys, 'logo')).scaled(
+        self.lb_logo.setPixmap(QtGui.QPixmap(util.resource_path(sys, 'logo')).scaled(
             lw, lh, 
             QtCore.Qt.KeepAspectRatio, 
             QtCore.Qt.SmoothTransformation))
@@ -341,10 +340,10 @@ class LoginDialog(QDialog, Ui_Login_Dialog):
         self.setupUi(self)
 
         # icon & logo
-        self.setWindowIcon(QtGui.QIcon(paths.resource_path(sys, 'icon')))
+        self.setWindowIcon(QtGui.QIcon(util.resource_path(sys, 'icon')))
         lh = 180
         lw = 180
-        self.lb_logo.setPixmap(QtGui.QPixmap(paths.resource_path(sys, 'logo')).scaled(
+        self.lb_logo.setPixmap(QtGui.QPixmap(util.resource_path(sys, 'logo')).scaled(
             lw, lh, 
             QtCore.Qt.KeepAspectRatio, 
             QtCore.Qt.SmoothTransformation))
@@ -592,11 +591,11 @@ class MainUI(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         #icon
-        self.setWindowIcon(QtGui.QIcon(paths.resource_path(sys, 'icon')) )
+        self.setWindowIcon(QtGui.QIcon(util.resource_path(sys, 'icon')) )
         # set logo
         lh = 180
         lw = 180
-        self.lb_logo.setPixmap(QtGui.QPixmap(paths.resource_path(sys, 'logo')).scaled(
+        self.lb_logo.setPixmap(QtGui.QPixmap(util.resource_path(sys, 'logo')).scaled(
             lw, lh, 
             QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
             )
@@ -671,7 +670,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         self.btn_preferences.clicked.connect(self.clickedPreferencesSlot)
 
         # check if db exists
-        if(not check_db_files()):
+        if(not util.check_db_files()):
             QtWidgets.QMessageBox.warning(self, conf_parser.get("APP", "name"), "DB file does not exists.")
             sys.exit()
         # check new verison : make request
@@ -700,13 +699,13 @@ class MainUI(QMainWindow, Ui_MainWindow):
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
-    app.setWindowIcon(QtGui.QIcon(paths.resource_path(sys, 'icon')))
+    app.setWindowIcon(QtGui.QIcon(util.resource_path(sys, 'icon')))
 
     # background build mode
     if (len(sys.argv) == 2 and sys.argv[1] == 'build'):
         # open the build log file
         try:
-            log_file = open(paths.build_log_path(), "a")
+            log_file = open(util.build_log_path(), "a")
         except Exception as e:
             sys.exit()
         
@@ -718,8 +717,8 @@ if __name__ == '__main__':
         log_file = log.add_build_log(log_file, "Build started on {}\n".format(current_string))
 
         # generate db paths
-        DB_PATH = paths.db_path('data')
-        DB_CONF_PATH = paths.db_path('conf')
+        DB_PATH = util.db_path('data')
+        DB_CONF_PATH = util.db_path('conf')
         if (not os.path.exists(DB_PATH) or not os.path.exists(DB_CONF_PATH)):
             log_file = log.add_build_log(log_file, "DB does not exists at {}".format(DB_PATH))
             sys.exit()
