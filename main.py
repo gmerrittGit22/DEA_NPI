@@ -12,6 +12,8 @@
 import sys
 import os
 import pathlib
+from shutil import copyfile
+
 import threading
 import socket
 import uuid     # to get mac address
@@ -57,7 +59,7 @@ import utils.util_crypt as crypt
 import utils.util as util
 
 # import golabal contents
-from global_content import *
+from config import *
 
 ## End import packages
 
@@ -666,7 +668,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
 
         # connect slots
         # self.buildProgressSignal.connect(self.buildProgressSlot)
-        # self.loadingFinishedSignal.connect(self.loadingFinishedSlot)
+        self.loadingFinishedSignal.connect(self.loadingFinishedSlot)
         # self.importProgressSignal.connect(self.importProgressSlot)
 
         # self.btn_save.clicked.connect(self.clickedSaveSlot)
@@ -676,17 +678,16 @@ class MainUI(QMainWindow, Ui_MainWindow):
         # self.rb_mds.clicked.connect(self.clickedMdsSlot)
         # self.rb_mrm.clicked.connect(self.clickedMrmSlot)
         # self.cb_frequency.currentIndexChanged.connect(self.frequencyChangedSlot)
-        # self.btn_brw.clicked.connect(self.clickedBrowseSlot)
+        self.btn_brw.clicked.connect(self.clickedBrowseSlot)
 
         # menu actions
         # self.act_import.triggered.connect(self.clickedImportSlot)
-        # self.act_backup.triggered.connect(self.clickedBackupSlot)    
+        self.act_backup.triggered.connect(self.clickedBackupSlot)    
         self.act_about.triggered.connect(self.clickedAboutSlot)
-        # self.act_help.triggered.connect(self.clickedHelpSlot)
-        # self.act_check_update.triggered.connect(self.clickedCheckUpdateSlot)
+        self.act_help.triggered.connect(self.clickedHelpSlot)
+        self.act_check_update.triggered.connect(self.clickedCheckUpdateSlot)
         # self.act_automate.triggered.connect(self.clickedAutomateSlot)
-        # self.act_exit.triggered.connect(self.close)
-
+        self.act_exit.triggered.connect(self.close)
 
         # timers
         # self.update_timer.timeout.connect(self.updateSlot)
@@ -695,27 +696,27 @@ class MainUI(QMainWindow, Ui_MainWindow):
         # self.build_timer.setSingleShot(True)
 
 
-        #loading dialog
-        # self.setEnabled(False)
-        # self.loading_dialog = LoadingDialog(self)
-        # self.loading_dialog.setWindowFlags(Qt.FramelessWindowHint)
-        # ww = (self.width() - self.loading_dialog.width()) / 2
-        # hh = (self.height() - self.loading_dialog.height()) / 2
-        # self.loading_dialog.move(int(ww), int(hh) - 100)
+        # loading dialog
+        self.setEnabled(False)
+        self.loading_dialog = LoadingDialog(self)
+        self.loading_dialog.setWindowFlags(Qt.FramelessWindowHint)
+        ww = (self.width() - self.loading_dialog.width()) / 2
+        hh = (self.height() - self.loading_dialog.height()) / 2
+        self.loading_dialog.move(int(ww), int(hh) - 100)
 
         #dialog
         # self.automate_dialog = AutomateDialog(self)
 
-        #add status bar
-        # status_bar  = QStatusBar(self)
-        # self.setStatusBar(status_bar)
-        # self.sb_pbar = QProgressBar(self)
-        # self.sb_pbar.setFormat("Updating DEA data  %p%")
-        # self.sb_pbar.setAlignment(Qt.AlignCenter)
-        # self.sb_pbar.setValue(0)
-        # self.sb_pbar.hide()
-        # self.sb_pbar.setMaximumWidth(350)
-        # status_bar.addPermanentWidget(self.sb_pbar)
+        # add status bar
+        status_bar  = QStatusBar(self)
+        self.setStatusBar(status_bar)
+        self.sb_pbar = QProgressBar(self)
+        self.sb_pbar.setFormat("Updating DEA data  %p%")
+        self.sb_pbar.setAlignment(Qt.AlignCenter)
+        self.sb_pbar.setValue(0)
+        self.sb_pbar.hide()
+        self.sb_pbar.setMaximumWidth(350)
+        status_bar.addPermanentWidget(self.sb_pbar)
 
         #welcome message
         self.lb_welcome_msg.setText("Welcome {} {}".format(gl_auth_first_name, gl_auth_last_name))
@@ -739,9 +740,9 @@ class MainUI(QMainWindow, Ui_MainWindow):
             request.setHeader(QtNetwork.QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
             self.networkAccessManager.post(request, data)
         # loading thread
-        self.thread = threading.Thread(target=self.firstLoadThread)
-        self.thread.setDaemon(True)
-        self.thread.start()
+        self.loading_thread = threading.Thread(target=self.firstLoadThread)
+        self.loading_thread.setDaemon(True)
+        self.loading_thread.start()
 
     # Begin Slots
     def clickedPreferencesSlot(self):
@@ -750,9 +751,60 @@ class MainUI(QMainWindow, Ui_MainWindow):
         print('url', url)
         webbrowser.open(url)
 
+    def clickedBackupSlot(self):
+        if(self.loading_thread != None or self.automate_dialog.thread != None):#already working
+            QtWidgets.QMessageBox.warning( self, \
+                conf_parser.get("APP", "name"), "The database is updating. Please wait.")
+            return
+        #choose file
+        default_path = QDateTime.currentDateTime().toString("yyyy_MM_dd_H_mm_ss")
+        default_path = "db(back)_" + default_path
+        fileName = QFileDialog.getSaveFileName(self, 'License Lookup',default_path,"Db files (*.db)")
+        if(fileName[0] == ''):
+            return
+        try:
+            copyfile(gl_db_path, fileName[0])
+        except IOError as e:
+            print('backup failed')
+            return
+        QtWidgets.QMessageBox.information( self, \
+            conf_parser.get("APP", "name"), "Succeeded to backup db as {}.".format(fileName[0]))
+
+    def clickedCheckUpdateSlot(self, reply):
+        # make the content
+        data = QtCore.QByteArray()
+        data.append("username={}&".format(gl_auth_email))
+        data.append("appVersion={}&".format(conf_parser.get("APP", "version")))
+        data.append("appID={}&".format(conf_parser.get("APP", "id")))
+        data.append("password={}".format(gl_auth_password))
+        
+        # set flag
+        self.check_update_show_latest = True
+        
+        # send request
+        request = QtNetwork.QNetworkRequest(QtCore.QUrl(conf_parser.get("URLs", "version")))
+        request.setHeader(QtNetwork.QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
+        self.networkAccessManager.post(request, data)
+
+    def clickedHelpSlot(self):
+        webbrowser.open(conf_parser.get("URLs", "help"))
+
     def clickedAboutSlot(self):
         about_dialog = AboutDialog(self)
         about_dialog.exec_()
+
+    def clickedBrowseSlot(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        dialog = QFileDialog(self)
+        dialog.setFileMode(QFileDialog.DirectoryOnly)
+        dialog.setOption(QFileDialog.ShowDirsOnly)
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        # dialog.setNameFilter("Text files (*.txt);;All Files (*)")
+        dialog.setWindowTitle("Choose directory to save")
+        if dialog.exec_():
+            dir = dialog.selectedFiles()[0]
+            self.le_sd.setText(dir)
 
     def loadingFinishedSlot(self):
         self.loading_dialog.hide()
@@ -760,13 +812,13 @@ class MainUI(QMainWindow, Ui_MainWindow):
         self.setEnabled(True)
 
         # set release data
-        self.lb_import_date.setText('Data Import Date: ' + gl_db_import_date)
+        self.lb_dea_import_date.setText('DEA data import date: ' + gl_db_import_date)
         
         # connect to db
         self.connect_db()
-        
+
         # thread none
-        self.thread = None
+        self.loading_thread = None
         
         # check if db empty, remove initial load date
         if(not self.checkDataEmpty()):
@@ -774,14 +826,44 @@ class MainUI(QMainWindow, Ui_MainWindow):
             self.lb_sil.hide()
         
         # load saved settings
-        self.loadSettings()
-        self.refreshDDR()
-        self.loadYearMonthComboBox()
+        # self.loadSettings()
+        # self.refreshDDR()
+        # self.loadYearMonthComboBox()
         
         # set single shot timer for ui
-        self.setUpdateTimer()
+        # self.setUpdateTimer()
+
+    def closeEvent(self, event):
+        # here you can terminate your threads and do other stuff
+        super(QMainWindow, self).closeEvent(event)
+
+        #close db
+        if(self.db_data != None):
+            self.db_data.close()
+        if(self.db_config != None):
+            self.db_config.close()
+        
+        #remove temp file
+        self.pb_build.hide()
+        util.remove_temp_files(gl_db_temp_path, TEMP_DB_SUFFIX)
+
+        sys.exit()
 
     # End Slots
+
+    def connect_db(self):
+        # main records db
+        self.db_data = sqlite3.connect(gl_db_temp_path)
+        self.cursor_data = self.db_data.cursor()
+        
+        # config db
+        self.db_config = sqlite3.connect(gl_conf_temp_path)
+        self.cursor_config = self.db_config.cursor()
+
+    def checkDataEmpty(self):
+        self.cursor_data.execute('select count(*) from items')
+        row = self.cursor_data.fetchone()
+        return row[0] == 0
 
     def handleResponse(self, reply):
 

@@ -7,8 +7,8 @@ AES_BUFFER_SIZE = 64 * 1024
 AES_PASSWORD = "password"
 
 # temp file
-TEMP_DB_SUFFIX = "dde_tmp"
-TEMP_ZIP_SUFFIX = "zip_dde_tmp"
+TEMP_DB_SUFFIX = "dnde_tmp"
+TEMP_ZIP_SUFFIX = "zip_dnde_tmp"
 
 # simulation
 SIMULATE_LOGIN9 = False

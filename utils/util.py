@@ -21,7 +21,7 @@ from PyQt5.QtNetwork import *
 from PyQt5.QtPrintSupport import *
 
 # import global contents
-from global_content import *
+from config import *
 
 ## End import packages
 
@@ -105,8 +105,14 @@ def db_path(db_name):
     path = os.path.join(path, db_paths[db_name])
     return path
 
-# check if db files exist or not
 def check_db_files():
+    """
+    the function to check the database files exist or not
+        return:
+            (boolean), if data and conf database not exist False, 
+                        otherwise True
+    """
+
     path = pathlib.Path().absolute()
     path_data = os.path.join(path, db_paths['data'])
     path_conf = os.path.join(path, db_paths['conf'])
@@ -114,8 +120,27 @@ def check_db_files():
         return False
     return True
 
+def remove_temp_files(temp_db_path, suffix):
+    """
+    the function to remove (delete) temp files created
+        param:
+            temp_db_path: (string), the path of the temp file
+            suffix: (string), the suffix of temp files
+    """
+    
+    tmpdir = os.path.dirname(temp_db_path)
+    for f in os.listdir(tmpdir):
+        if f.endswith(suffix):
+            try:
+                os.remove(os.path.join(tmpdir, f))
+            except Exception as e:
+                print('remove temp file exception ', e)
 
 def initSmtp():
+    """
+    the function to init the SMTP object
+    """
+
     try:
         context = ssl.create_default_context()
         gl_smtp_obj = smtplib.SMTP('smtp.mailgun.org', 587)
@@ -127,6 +152,9 @@ def initSmtp():
         gl_smtp_obj = None
 
 def smtpSendMessage(subject, content):
+    """
+    the function to send the SMTP mail
+    """
 
     # if(SKIP_MAIL):
     #     return
