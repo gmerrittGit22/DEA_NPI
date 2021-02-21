@@ -924,14 +924,14 @@ if __name__ == '__main__':
     if(splash_ui.exec_() == QDialog.Accepted):
         # no session or failed to login
         if(gl_auth_email == '' or gl_auth_result != '1'):
-            # login_ui = LoginDialog(None)
-            # if(login_ui.exec_() == QDialog.Accepted):
-            #     gl_main_ui = MainUI()
-            #     gl_main_ui.show()
-            # else:
-            #     sys.exit()
-            gl_main_ui = MainUI()
-            gl_main_ui.show()
+            login_ui = LoginDialog(None)
+            if(login_ui.exec_() == QDialog.Accepted):
+                gl_main_ui = MainUI()
+                gl_main_ui.show()
+            else:
+                sys.exit()
+            # gl_main_ui = MainUI()
+            # gl_main_ui.show()
         else: # if there is session, and auth result is true
             gl_auth_new_login = False
             gl_main_ui = MainUI()
