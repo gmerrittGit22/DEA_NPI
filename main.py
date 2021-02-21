@@ -252,7 +252,7 @@ class SplashDialog(QDialog, Ui_Splash_Dialog):
         # read data
         data = reply.readAll().data().decode()
         print("reply data: ", data,"|")
-        
+
         gl_auth_result = data[0:1]
         if(gl_auth_result == '1'):
             data_list = data.split("|")
@@ -374,6 +374,7 @@ class LoginDialog(QDialog, Ui_Login_Dialog):
             self.completer = QCompleter(cookies)
             self.completer.setCaseSensitivity(Qt.CaseInsensitive)
             self.le_email.setCompleter(self.completer)
+
             #install event filter for empty field completer
             self.le_email.installEventFilter(self)
 
@@ -543,6 +544,62 @@ class LoginDialog(QDialog, Ui_Login_Dialog):
             app_settings.setValue("LicenseAgree", "0")
             self.showErrorMsg()
 
+# About Dialog
+class AboutDialog(QDialog, Ui_About_Dialog):
+    def __init__(self, parent):
+        super(AboutDialog, self).__init__(parent)
+        self.setupUi(self)
+
+        # set icon
+        self.setWindowIcon(QtGui.QIcon(util.resource_path(sys, 'icon'))) 
+        # set logo
+        lh = 180
+        lw = 180
+        self.lb_logo.setPixmap(QtGui.QPixmap(util.resource_path(sys, 'logo')).scaled(
+            lw, lh, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
+        
+        # init field values
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
+
+        # connect signals
+        self.btn_ok.clicked.connect(self.close)
+
+        # init values
+        html = self.lb_main.text()
+        html = html.replace("[name]", "{} {}".format(gl_auth_first_name, gl_auth_last_name))
+        html = html.replace("[email]", gl_auth_email)
+        html = html.replace("[company name]", gl_auth_user_company)
+        html = html.replace("[version]", conf_parser.get("APP", "version"))
+        self.lb_main.setText(html)
+
+# Loading Dialog
+class LoadingDialog(QDialog, Ui_Loading_Dialog):
+
+    # class scope variables
+    timer = None
+    dot_count = 2
+
+    def __init__(self, parent):
+        super(LoadingDialog, self).__init__(parent)
+        self.setupUi(self)
+
+        #icon
+        self.setWindowIcon(QtGui.QIcon(util.resource_path(sys, "icon")))
+
+        #start timer
+        self.timer = QTimer()
+        self.timer.start(300)
+        self.timer.timeout.connect(self.timeOutSlot)
+
+    def timeOutSlot(self):
+        self.dot_count += 1
+        if(self.dot_count == 4):
+            self.dot_count = 0
+        loading_text = "Loading "
+        for x in range(self.dot_count):
+            loading_text += "."
+
+        self.lb_loading.setText(loading_text)
 
 # Main
 class MainUI(QMainWindow, Ui_MainWindow):
@@ -624,7 +681,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         # menu actions
         # self.act_import.triggered.connect(self.clickedImportSlot)
         # self.act_backup.triggered.connect(self.clickedBackupSlot)    
-        # self.act_about.triggered.connect(self.clickedAboutSlot)
+        self.act_about.triggered.connect(self.clickedAboutSlot)
         # self.act_help.triggered.connect(self.clickedHelpSlot)
         # self.act_check_update.triggered.connect(self.clickedCheckUpdateSlot)
         # self.act_automate.triggered.connect(self.clickedAutomateSlot)
@@ -692,6 +749,37 @@ class MainUI(QMainWindow, Ui_MainWindow):
             conf_parser.get("URLs", "preference"), gl_auth_email, gl_auth_password)
         print('url', url)
         webbrowser.open(url)
+
+    def clickedAboutSlot(self):
+        about_dialog = AboutDialog(self)
+        about_dialog.exec_()
+
+    def loadingFinishedSlot(self):
+        self.loading_dialog.hide()
+        self.loading_dialog.timer.stop()
+        self.setEnabled(True)
+
+        # set release data
+        self.lb_import_date.setText('Data Import Date: ' + gl_db_import_date)
+        
+        # connect to db
+        self.connect_db()
+        
+        # thread none
+        self.thread = None
+        
+        # check if db empty, remove initial load date
+        if(not self.checkDataEmpty()):
+            self.ckb_sil.hide()
+            self.lb_sil.hide()
+        
+        # load saved settings
+        self.loadSettings()
+        self.refreshDDR()
+        self.loadYearMonthComboBox()
+        
+        # set single shot timer for ui
+        self.setUpdateTimer()
 
     # End Slots
 
@@ -836,14 +924,14 @@ if __name__ == '__main__':
     if(splash_ui.exec_() == QDialog.Accepted):
         # no session or failed to login
         if(gl_auth_email == '' or gl_auth_result != '1'):
-            login_ui = LoginDialog(None)
-            if(login_ui.exec_() == QDialog.Accepted):
-                gl_main_ui = MainUI()
-                gl_main_ui.show()
-            else:
-                sys.exit()
-            # gl_main_ui = MainUI()
-            # gl_main_ui.show()
+            # login_ui = LoginDialog(None)
+            # if(login_ui.exec_() == QDialog.Accepted):
+            #     gl_main_ui = MainUI()
+            #     gl_main_ui.show()
+            # else:
+            #     sys.exit()
+            gl_main_ui = MainUI()
+            gl_main_ui.show()
         else: # if there is session, and auth result is true
             gl_auth_new_login = False
             gl_main_ui = MainUI()
