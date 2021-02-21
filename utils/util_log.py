@@ -19,7 +19,7 @@ from PyQt5.QtPrintSupport import *
 import os
 
 # custom utils
-from  utils.util_path import build_log_path, update_log_path                             
+from  utils.util import build_log_path, update_log_path                             
 
 ## End import packages
 
