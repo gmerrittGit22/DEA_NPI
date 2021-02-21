@@ -34,4 +34,11 @@ gl_smtp_obj = None               # SMTP object
 # UI
 gl_main_ui = None
 
+# database
+gl_db_path = ''
+gl_conf_path = ''
+gl_db_temp_path = None
+gl_conf_temp_path = None
+gl_db_import_date = ''
+
 ## End Global variables...

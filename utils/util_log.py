@@ -24,7 +24,6 @@ from  utils.util import build_log_path, update_log_path
 ## End import packages
 
 
-
 def add_update_log(file, msg):
     """
     the function to output log in update log file
