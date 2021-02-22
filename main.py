@@ -1,7 +1,7 @@
 # -------------------------------------------------------------------------------
 # DEA-NPI Data Engine (DNDE)
 #
-# version   : 1.0.0
+# version   : 1
 # summary   : The app downloads DEA data and NPI data, and then builds a cross \
 #             reference output file between the two.
 # -------------------------------------------------------------------------------
@@ -803,19 +803,20 @@ class MainUI(QMainWindow, Ui_MainWindow):
             fileNames = dialog.selectedFiles()
             fileName = fileNames[0]
 
-        if(len(fileName) < 5):#cancel button
+        # cancel button
+        if(len(fileName) < 5):
             return
 
-        if(util.check_import_text_file(fileName) == 'length'):
+        if(util.check_import_dea_file(fileName) == 'length'):
             QtWidgets.QMessageBox.warning( self, conf_parser.get("APP", "name"), "Import data file record length has changed or is incorrect.")
             util.smtpSendMessage('Import Error', 'Error: Data file record length changed')
             return
-        if(util.check_import_text_file(fileName) == 'permission'):
+        if(util.check_import_dea_file(fileName) == 'permission'):
             QtWidgets.QMessageBox.warning( self, conf_parser.get("APP", "name"), "Permission denied to the local import file")
             util.smtpSendMessage('Import Error', 'Error: Permission denied to the local import file')
             return
         
-        gl_content.db_import_path = fileName  
+        gl_content.dea_import_path = fileName  
 
         #set ui
         self.pb_build.show()
@@ -836,7 +837,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         self.thread.start()
 
     def importThreadAction(self, initial_load):
-        util.import_from_local_file(0, self.importProgressSignal, initial_load)
+        util.import_local_dea_file(0, self.importProgressSignal, initial_load)
 
     def loadingFinishedSlot(self):
         self.loading_dialog.hide()
@@ -844,7 +845,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         self.setEnabled(True)
 
         # set release data
-        self.lb_dea_import_date.setText('DEA data import date: ' + gl_content.db_import_date)
+        self.lb_dea_import_date.setText('DEA data import date: ' + gl_content.dea_import_date)
         
         # connect to db
         self.connect_db()
@@ -921,7 +922,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
     def importProgressSlot(self, value):
         if(value == 200):
             self.pb_build.hide()
-            self.lb_dea_import_date.setText('Data Import Date: ' + gl_content.db_import_date)
+            self.lb_dea_import_date.setText('Data Import Date: ' + gl_content.dea_import_date)
             msg = "Successfully imported."
             QtWidgets.QMessageBox.information( self, conf_parser.get("APP", "name"), msg)
             self.connect_db()
@@ -966,7 +967,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         import_date = ""
         if(data != None):
             import_date = str(data[1])
-        gl_content.db_import_date = import_date
+        gl_content.dea_import_date = import_date
         context.close()
         
         self.loadingFinishedSignal.emit()

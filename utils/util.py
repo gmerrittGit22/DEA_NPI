@@ -172,7 +172,7 @@ def smtpSendMessage(subject, content):
         print("Error: failed to send email message.", e)
 
 
-def import_from_local_file(initial_value, custom_signal, initial_load):
+def import_local_dea_file(initial_value, custom_signal, initial_load):
     """
     the function to import data from local file
         param:
@@ -207,7 +207,7 @@ def import_from_local_file(initial_value, custom_signal, initial_load):
           address2 text, city text, state text, zip text, bac_subcode text, pay_ind text, status text, PRIMARY KEY(idnumber))''')
     
     # text data
-    path = gl_content.db_import_path
+    path = gl_content.dea_import_path
     file = open(path, 'r')
     total_count = int(os.stat(path).st_size / gl_content.ITEM_LENGTH)
     update_rate = int(total_count / import_range) + 1
@@ -263,10 +263,10 @@ def import_from_local_file(initial_value, custom_signal, initial_load):
     # if old table is not empty , calculate deactivated,  new, changed
     if (not b_old_empty):
         # calculate date first
-        if(gl_content.db_import_date == ''): #this error wont appear in 99.99 %
-            gl_content.db_import_date = gl_content.DEFAULT_DB_IMPORT_DATE
+        if(gl_content.dea_import_date == ''): #this error wont appear in 99.99 %
+            gl_content.dea_import_date = gl_content.DEFAULT_IMPORT_DATE
 
-        last_active_date = gl_content.db_import_date[6:10] + "/" + gl_content.db_import_date[0:2] + "/" + gl_content.db_import_date[3:5]
+        last_active_date = gl_content.dea_import_date[6:10] + "/" + gl_content.dea_import_date[0:2] + "/" + gl_content.dea_import_date[3:5]
         added_date = change_date = QDate.currentDate().toString("yyyy/MM/dd")
 
         # process items_deactivated
@@ -369,12 +369,12 @@ def import_from_local_file(initial_value, custom_signal, initial_load):
     context = sqlite3.connect(gl_content.conf_temp_path)
     cursor = context.cursor()
     import_date = QDate.currentDate().toString("MM/dd/yyyy")
-    if(gl_content.db_import_date == '' and initial_load): #first import
-        gl_content.db_import_date = gl_content.DEFAULT_DB_IMPORT_DATE
+    if(gl_content.dea_import_date == '' and initial_load): #first import
+        gl_content.dea_import_date = gl_content.DEFAULT_IMPORT_DATE
     else:
-        gl_content.db_import_date = import_date
+        gl_content.dea_import_date = import_date
     cursor.execute('''UPDATE config set value='{}' where name='import_date' '''.format(
-        gl_content.db_import_date))
+        gl_content.dea_import_date))
     context.commit()
     context.close()
 
@@ -388,7 +388,7 @@ def import_from_local_file(initial_value, custom_signal, initial_load):
     if(custom_signal):
         custom_signal.emit(200)
 
-def check_import_text_file(filename):
+def check_import_dea_file(filename):
     """
     the function to check the input db(.txt) file is valid or not
         (check the length of first line's length)
@@ -408,3 +408,5 @@ def check_import_text_file(filename):
 
     return True
 
+def import_local_npi_file():
+    pass
