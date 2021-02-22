@@ -106,9 +106,9 @@ class SplashDialog(QDialog, Ui_Splash_Dialog):
             QtCore.Qt.SmoothTransformation))
         
         # start check server thread
-        self.check_thread = threading.Thread(target=self.checkServerThread)
-        self.check_thread.setDaemon(True)
-        self.check_thread.start()
+        self.thread = threading.Thread(target=self.checkServerThread)
+        self.thread.setDaemon(True)
+        self.thread.start()
 
         self.checkResultSignal.connect(self.onCheckResult)
 
@@ -168,9 +168,9 @@ class SplashDialog(QDialog, Ui_Splash_Dialog):
             sys.exit()
         if(ret == QMessageBox.Retry):
             # retry connection
-            self.check_thread = threading.Thread(target=self.checkServerThread)
-            self.check_thread.setDaemon(True)
-            self.check_thread.start()
+            self.thread = threading.Thread(target=self.checkServerThread)
+            self.thread.setDaemon(True)
+            self.thread.start()
             self.pros = 0
             self.check_timer.start(100)
 
@@ -610,7 +610,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
     """
 
     # define class variables
-    loading_thread = None
+    thread = None
     buildProgressSignal = pyqtSignal(int)
     importProgressSignal = pyqtSignal(int)
     loadingFinishedSignal = pyqtSignal()
@@ -740,9 +740,9 @@ class MainUI(QMainWindow, Ui_MainWindow):
             request.setHeader(QtNetwork.QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
             self.networkAccessManager.post(request, data)
         # loading thread
-        self.loading_thread = threading.Thread(target=self.firstLoadThread)
-        self.loading_thread.setDaemon(True)
-        self.loading_thread.start()
+        self.thread = threading.Thread(target=self.firstLoadThread)
+        self.thread.setDaemon(True)
+        self.thread.start()
 
     # Begin Slots
     def clickedPreferencesSlot(self):
@@ -752,7 +752,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         webbrowser.open(url)
 
     def clickedBackupSlot(self):
-        if(self.loading_thread != None or self.automate_dialog.thread != None):#already working
+        if(self.thread != None or self.automate_dialog.thread != None):#already working
             QtWidgets.QMessageBox.warning( self, \
                 conf_parser.get("APP", "name"), "The database is updating. Please wait.")
             return
@@ -818,7 +818,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         self.connect_db()
 
         # thread none
-        self.loading_thread = None
+        self.thread = None
         
         # check if db empty, remove initial load date
         if(not self.checkDataEmpty()):
