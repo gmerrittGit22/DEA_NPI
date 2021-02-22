@@ -59,14 +59,16 @@ import utils.util_crypt as crypt
 import utils.util as util
 
 # import golabal contents
-from config import *
+import global_content as gl_content 
 
 ## End import packages
 
-
+# parse config file
 conf_parser = ConfigParser()
 conf_parser.read('config.ini')
 
+# initialize the global contents
+gl_content.initialize()
 
 ## Begin Implement UIs
 
@@ -189,29 +191,21 @@ class SplashDialog(QDialog, Ui_Splash_Dialog):
         the function to check the session
         """
 
-        # check the session and try relogin
-        global gl_auth_email
-        global gl_auth_user_company
-        global gl_auth_first_name
-        global gl_auth_last_name
-        global gl_auth_user_sys_id
-        global gl_auth_password
-
         app_settings = QSettings(conf_parser.get("APP", "name"))
         end_date_time = app_settings.value("EndDateTime", type=QDateTime)
         cur_date_time = QDateTime.currentDateTime()
         if(cur_date_time.secsTo(end_date_time) > 0):
             # get values from app_settings
-            gl_auth_email = app_settings.value("Email")
-            gl_auth_user_company = app_settings.value("UserCompany")
-            gl_auth_first_name = app_settings.value("FirstName")
-            gl_auth_last_name = app_settings.value("LastName")
-            gl_auth_user_sys_id = app_settings.value("UserSysId")
-            gl_auth_password = app_settings.value("Password")
+            gl_content.auth_email = app_settings.value("Email")
+            gl_content.auth_user_company = app_settings.value("UserCompany")
+            gl_content.auth_first_name = app_settings.value("FirstName")
+            gl_content.auth_last_name = app_settings.value("LastName")
+            gl_content.auth_user_sys_id = app_settings.value("UserSysId")
+            gl_content.auth_password = app_settings.value("Password")
             
             # decrypt password
-            bytes_password = bytes(gl_auth_password)
-            gl_auth_password = crypt.decrypt(bytes_password)
+            bytes_password = bytes(gl_content.auth_password)
+            gl_content.auth_password = crypt.decrypt(bytes_password)
 
             # make login request
             # get mac address
@@ -222,11 +216,11 @@ class SplashDialog(QDialog, Ui_Splash_Dialog):
             
             # configure data
             data = QtCore.QByteArray()
-            data.append("username={}&".format(gl_auth_email))
+            data.append("username={}&".format(gl_content.auth_email))
             data.append("appVersion={}&".format(conf_parser.get("APP", "version")))
             data.append("appID={}&".format(conf_parser.get("APP", "id")))
             data.append("machineID={}&".format(mac_addr))
-            data.append("password={}".format(gl_auth_password))
+            data.append("password={}".format(gl_content.auth_password))
             
             # send request
             request = QtNetwork.QNetworkRequest(QtCore.QUrl(conf_parser.get("URLs", "auth")))
@@ -242,21 +236,12 @@ class SplashDialog(QDialog, Ui_Splash_Dialog):
 
     def handleResponse(self, reply):
         
-        # global scope variables
-        global gl_auth_email
-        global gl_auth_user_company
-        global gl_auth_first_name
-        global gl_auth_last_name
-        global gl_auth_user_sys_id
-        global gl_auth_result
-        global gl_auth_password
-
         # read data
         data = reply.readAll().data().decode()
         print("reply data: ", data,"|")
 
-        gl_auth_result = data[0:1]
-        if(gl_auth_result == '1'):
+        gl_content.auth_result = data[0:1]
+        if(gl_content.auth_result == '1'):
             data_list = data.split("|")
             reLoginTime = data_list[6]  
             AllDaySession = data_list[7]
@@ -273,13 +258,13 @@ class SplashDialog(QDialog, Ui_Splash_Dialog):
                 end_date_time.setTime(QTime(23,59,59))
             print("End Date Time: ", end_date_time.toString())      
             #save first , last name, compnay, user_sys_id
-            gl_auth_user_sys_id = data_list[8]
-            gl_auth_first_name = data_list[10]
-            gl_auth_last_name = data_list[11]
-            gl_auth_user_company = data_list[12]
+            gl_content.auth_user_sys_id = data_list[8]
+            gl_content.auth_first_name = data_list[10]
+            gl_content.auth_last_name = data_list[11]
+            gl_content.auth_user_company = data_list[12]
 
-            email = gl_auth_email
-            gl_auth_email = email
+            email = gl_content.auth_email
+            gl_content.auth_email = email
             app_settings = QSettings(conf_parser.get("APP", "name"))
             app_settings.setValue("EndDateTime", end_date_time)
             email_cookie = app_settings.value("EmailCookie")
@@ -290,13 +275,13 @@ class SplashDialog(QDialog, Ui_Splash_Dialog):
                 if email not in cookies:
                     email_cookie = email_cookie + "\x0D" + email
             app_settings.setValue("EmailCookie", email_cookie)
-            app_settings.setValue("Email", gl_auth_email)
-            app_settings.setValue("UserSysId", gl_auth_user_sys_id)
-            app_settings.setValue("FirstName", gl_auth_first_name)
-            app_settings.setValue("LastName", gl_auth_last_name)
-            app_settings.setValue("UserCompany", gl_auth_user_company)
+            app_settings.setValue("Email", gl_content.auth_email)
+            app_settings.setValue("UserSysId", gl_content.auth_user_sys_id)
+            app_settings.setValue("FirstName", gl_content.auth_first_name)
+            app_settings.setValue("LastName", gl_content.auth_last_name)
+            app_settings.setValue("UserCompany", gl_content.auth_user_company)
             #crypt password and save it
-            crypt_password = crypt.encrypt(gl_auth_password)
+            crypt_password = crypt.encrypt(gl_content.auth_password)
             crypt_password = QByteArray(crypt_password)
             app_settings.setValue("Password", crypt_password)
             del app_settings
@@ -395,20 +380,20 @@ class LoginDialog(QDialog, Ui_Login_Dialog):
         self.btn_agree_link.move(sx+cw, 254)
         
         # check if error occured in relogin process or not
-        if(gl_auth_result != '1'): # if not success
-            self.le_email.setText(gl_auth_email)
-            self.le_password.setText(gl_auth_password)
+        if(gl_content.auth_result != '1'): # if not success
+            self.le_email.setText(gl_content.auth_email)
+            self.le_password.setText(gl_content.auth_password)
             self.error_timer.setSingleShot(True)
             self.error_timer.start(200) 
             self.error_timer.timeout.connect(self.showErrorMsg)
 
     def showErrorMsg(self):
         # failed to login
-        if(gl_auth_result == '0'):
+        if(gl_content.auth_result == '0'):
             QtWidgets.QMessageBox.warning( self, conf_parser.get("APP", "name"), "Failed to login. \nPlease check email and password again.")
         
         # credential is in use on another machine
-        if(gl_auth_result == '8'):
+        if(gl_content.auth_result == '8'):
             QtWidgets.QMessageBox.warning( self, conf_parser.get("APP", "name"), "This login is currently in use on another machine.")
             util.smtpSendMessage('Login Error', "The login({}) is currently in use on another machine.".format(self.le_email.text()))
 
@@ -461,26 +446,16 @@ class LoginDialog(QDialog, Ui_Login_Dialog):
         self.networkAccessManager.post(request, data)
 
     def handleResponse(self, reply):
-
-        # implement global variable
-        global gl_auth_email
-        global gl_auth_user_company
-        global gl_auth_first_name
-        global gl_auth_last_name
-        global gl_auth_user_sys_id
-        global gl_auth_result
-        global gl_auth_password
-
         # show login dialog
         self.setVisible(True)
 
         # read data
         data = reply.readAll().data().decode()
         print("reply data: ", data, "|")
-        gl_auth_result = data[0:1]
+        gl_content.auth_result = data[0:1]
 
         #check simulation first
-        if(gl_auth_result == '9' or SIMULATE_LOGIN9):
+        if(gl_content.auth_result == '9' or gl_content.SIMULATE_LOGIN9):
             QMessageBox.warning(self, conf_parser.get("APP", "name"),
                                "Version {} is no longer active. <br>"
 		                       "Visit <a  href='https:/dealookup.com' style='color:#26a9e1'>www.dealookup.com</a> \
@@ -488,7 +463,7 @@ class LoginDialog(QDialog, Ui_Login_Dialog):
                               )
             return
         #check simulation : end
-        if(gl_auth_result == '1'):
+        if(gl_content.auth_result == '1'):
             data_list = data.split("|")
             reLoginTime = data_list[6]  
             AllDaySession = data_list[7]
@@ -505,13 +480,13 @@ class LoginDialog(QDialog, Ui_Login_Dialog):
                 end_date_time.setTime(QTime(23,59,59))
             print("End Date Time: ", end_date_time.toString())      
             #save first , last name, compnay, user_sys_id
-            gl_auth_user_sys_id = data_list[8]
-            gl_auth_first_name = data_list[10]
-            gl_auth_last_name = data_list[11]
-            gl_auth_user_company = data_list[12]
+            gl_content.auth_user_sys_id = data_list[8]
+            gl_content.auth_first_name = data_list[10]
+            gl_content.auth_last_name = data_list[11]
+            gl_content.auth_user_company = data_list[12]
 
             email = self.le_email.text()
-            gl_auth_email = email
+            gl_content.auth_email = email
             app_settings = QSettings(conf_parser.get("APP", "name"))
             app_settings.setValue("EndDateTime", end_date_time)
             email_cookie = app_settings.value("EmailCookie")
@@ -522,17 +497,17 @@ class LoginDialog(QDialog, Ui_Login_Dialog):
                 if email not in cookies:
                     email_cookie = email_cookie + "\x0D" + email
             app_settings.setValue("EmailCookie", email_cookie)
-            app_settings.setValue("Email", gl_auth_email)
-            app_settings.setValue("UserSysId", gl_auth_user_sys_id)
-            app_settings.setValue("FirstName", gl_auth_first_name)
-            app_settings.setValue("LastName", gl_auth_last_name)
-            app_settings.setValue("UserCompany", gl_auth_user_company)
+            app_settings.setValue("Email", gl_content.auth_email)
+            app_settings.setValue("UserSysId", gl_content.auth_user_sys_id)
+            app_settings.setValue("FirstName", gl_content.auth_first_name)
+            app_settings.setValue("LastName", gl_content.auth_last_name)
+            app_settings.setValue("UserCompany", gl_content.auth_user_company)
 
             app_settings.setValue("LicenseAgree", "1")
 
             #crypt password and save it
-            gl_auth_password = self.le_password.text()
-            crypt_password = crypt.encrypt(gl_auth_password)
+            gl_content.auth_password = self.le_password.text()
+            crypt_password = crypt.encrypt(gl_content.auth_password)
             crypt_password = QByteArray(crypt_password)
             app_settings.setValue("Password", crypt_password)
             del app_settings
@@ -568,9 +543,9 @@ class AboutDialog(QDialog, Ui_About_Dialog):
 
         # init values
         html = self.lb_main.text()
-        html = html.replace("[name]", "{} {}".format(gl_auth_first_name, gl_auth_last_name))
-        html = html.replace("[email]", gl_auth_email)
-        html = html.replace("[company name]", gl_auth_user_company)
+        html = html.replace("[name]", "{} {}".format(gl_content.auth_first_name, gl_content.auth_last_name))
+        html = html.replace("[email]", gl_content.auth_email)
+        html = html.replace("[company name]", gl_content.auth_user_company)
         html = html.replace("[version]", conf_parser.get("APP", "version"))
         self.lb_main.setText(html)
 
@@ -719,7 +694,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         status_bar.addPermanentWidget(self.sb_pbar)
 
         #welcome message
-        self.lb_welcome_msg.setText("Welcome {} {}".format(gl_auth_first_name, gl_auth_last_name))
+        self.lb_welcome_msg.setText("Welcome {} {}".format(gl_content.auth_first_name, gl_content.auth_last_name))
         self.btn_preferences.clicked.connect(self.clickedPreferencesSlot)
 
         # check if db exists
@@ -729,12 +704,12 @@ class MainUI(QMainWindow, Ui_MainWindow):
         # check new verison : make request
         self.networkAccessManager.finished.connect(self.handleResponse)
 
-        if(gl_auth_new_login):
+        if(gl_content.auth_new_login):
             data = QtCore.QByteArray()
-            data.append("username={}&".format(gl_auth_email))
+            data.append("username={}&".format(gl_content.auth_email))
             data.append("appVersion={}&".format(conf_parser.get("APP", "version")))
             data.append("appID={}&".format(conf_parser.get("APP", "id")))
-            data.append("password={}".format(gl_auth_password))
+            data.append("password={}".format(gl_content.auth_password))
             # send request
             request = QtNetwork.QNetworkRequest(QtCore.QUrl(conf_parser.get("URLs", "version")))
             request.setHeader(QtNetwork.QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
@@ -747,7 +722,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
     # Begin Slots
     def clickedPreferencesSlot(self):
         url = "{}&username={}&password={}".format(
-            conf_parser.get("URLs", "preference"), gl_auth_email, gl_auth_password)
+            conf_parser.get("URLs", "preference"), gl_content.auth_email, gl_content.auth_password)
         print('url', url)
         webbrowser.open(url)
 
@@ -763,7 +738,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         if(fileName[0] == ''):
             return
         try:
-            copyfile(gl_db_path, fileName[0])
+            copyfile(gl_content.db_path, fileName[0])
         except IOError as e:
             print('backup failed')
             return
@@ -773,10 +748,10 @@ class MainUI(QMainWindow, Ui_MainWindow):
     def clickedCheckUpdateSlot(self, reply):
         # make the content
         data = QtCore.QByteArray()
-        data.append("username={}&".format(gl_auth_email))
+        data.append("username={}&".format(gl_content.auth_email))
         data.append("appVersion={}&".format(conf_parser.get("APP", "version")))
         data.append("appID={}&".format(conf_parser.get("APP", "id")))
-        data.append("password={}".format(gl_auth_password))
+        data.append("password={}".format(gl_content.auth_password))
         
         # set flag
         self.check_update_show_latest = True
@@ -812,7 +787,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         self.setEnabled(True)
 
         # set release data
-        self.lb_dea_import_date.setText('DEA data import date: ' + gl_db_import_date)
+        self.lb_dea_import_date.setText('DEA data import date: ' + gl_content.db_import_date)
         
         # connect to db
         self.connect_db()
@@ -845,7 +820,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         
         #remove temp file
         self.pb_build.hide()
-        util.remove_temp_files(gl_db_temp_path, TEMP_DB_SUFFIX)
+        util.remove_temp_files(gl_content.TEMP_DB_SUFFIX)
 
         sys.exit()
 
@@ -853,11 +828,11 @@ class MainUI(QMainWindow, Ui_MainWindow):
 
     def connect_db(self):
         # main records db
-        self.db_data = sqlite3.connect(gl_db_temp_path)
+        self.db_data = sqlite3.connect(gl_content.db_temp_path)
         self.cursor_data = self.db_data.cursor()
         
         # config db
-        self.db_config = sqlite3.connect(gl_conf_temp_path)
+        self.db_config = sqlite3.connect(gl_content.conf_temp_path)
         self.cursor_config = self.db_config.cursor()
 
     def checkDataEmpty(self):
@@ -871,7 +846,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         data = reply.readAll().data().decode()
         v_result = data[0:1]
         url = "{}&username={}&password={}".format(
-            conf_parser.get("URLs", "download"), gl_auth_email, gl_auth_password)
+            conf_parser.get("URLs", "download"), gl_content.auth_email, gl_content.auth_password)
         if(v_result == "2"):
             QMessageBox.information( 
                 self, conf_parser.get("APP", "name"),
@@ -887,41 +862,35 @@ class MainUI(QMainWindow, Ui_MainWindow):
         self.check_update_show_latest = False
 
     def firstLoadThread(self):
-
-        # global scope variables
-        global gl_db_temp_path
-        global gl_conf_temp_path
-        global gl_db_import_date
-
         # generate template path
-        tf = tempfile.NamedTemporaryFile(suffix=TEMP_DB_SUFFIX)
-        gl_db_temp_path = tf.name
+        tf = tempfile.NamedTemporaryFile(suffix=gl_content.TEMP_DB_SUFFIX)
+        gl_content.db_temp_path = tf.name
         tf.close()
 
-        tf = tempfile.NamedTemporaryFile(suffix=TEMP_DB_SUFFIX)
-        gl_conf_temp_path = tf.name
+        tf = tempfile.NamedTemporaryFile(suffix=gl_content.TEMP_DB_SUFFIX)
+        gl_content.conf_temp_path = tf.name
         tf.close()
 
         # encrypt db
-        pyAesCrypt.decryptFile(gl_db_path, gl_db_temp_path, AES_PASSWORD, AES_BUFFER_SIZE)
-        pyAesCrypt.decryptFile(gl_conf_path, gl_conf_temp_path, AES_PASSWORD, AES_BUFFER_SIZE)
+        pyAesCrypt.decryptFile(gl_content.db_path, gl_content.db_temp_path, gl_content.AES_PASSWORD, gl_content.AES_BUFFER_SIZE)
+        pyAesCrypt.decryptFile(gl_content.conf_path, gl_content.conf_temp_path, gl_content.AES_PASSWORD, gl_content.AES_BUFFER_SIZE)
 
         # load main db
-        context = sqlite3.connect(gl_db_temp_path)
+        context = sqlite3.connect(gl_content.db_temp_path)
         cursor = context.cursor()
         cursor.execute('''select * from items where fullName like '%smith%' limit 200''')
         data = cursor.fetchall()
         context.close()
 
         # load conf db
-        context = sqlite3.connect(gl_conf_temp_path)
+        context = sqlite3.connect(gl_content.conf_temp_path)
         cursor = context.cursor()    
         cursor.execute('''select * from config where name = 'import_date' ''')
         data = cursor.fetchone()
         import_date = ""
         if(data != None):
             import_date = str(data[1])
-        gl_db_import_date = import_date
+        gl_content.db_import_date = import_date
         context.close()
         
         self.loadingFinishedSignal.emit()
@@ -936,8 +905,8 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setWindowIcon(QtGui.QIcon(util.resource_path(sys, 'icon')))
 
-    gl_db_path = util.db_path('data')
-    gl_conf_path = util.db_path('conf')
+    gl_content.db_path = util.db_path('data')
+    gl_content.conf_path = util.db_path('conf')
 
     # background build mode
     if (len(sys.argv) == 2 and sys.argv[1] == 'build'):
@@ -955,10 +924,10 @@ if __name__ == '__main__':
         log_file = log.add_build_log(log_file, "Build started on {}\n".format(current_string))
 
         # generate db paths
-        gl_db_path = util.db_path('data')
-        gl_conf_path = util.db_path('conf')
-        if (not os.path.exists(gl_db_path) or not os.path.exists(gl_conf_path)):
-            log_file = log.add_build_log(log_file, "DB does not exists at {}".format(gl_db_path))
+        gl_content.db_path = util.db_path('data')
+        gl_content.conf_path = util.db_path('conf')
+        if (not os.path.exists(gl_content.db_path) or not os.path.exists(gl_content.conf_path)):
+            log_file = log.add_build_log(log_file, "DB does not exists at {}".format(gl_content.db_path))
             sys.exit()
         
         # check the another instance is running
@@ -970,18 +939,18 @@ if __name__ == '__main__':
         
         # decrypt database
         tf = tempfile.NamedTemporaryFile(suffix=conf_parser.get("TEMP_SUFFIX", "db"))
-        gl_db_temp_path = tf.name
+        gl_content.db_temp_path = tf.name
         tf.close()
         tf = tempfile.NamedTemporaryFile(suffix=conf_parser.get("TEMP_SUFFIX", "db"))
-        gl_conf_temp_path = tf.name
+        gl_content.conf_temp_path = tf.name
         tf.close()
-        pyAesCrypt.decryptFile(gl_db_path, gl_db_temp_path, \
+        pyAesCrypt.decryptFile(gl_content.db_path, gl_content.db_temp_path, \
             conf_parser.get("AES", "pass"), conf_parser.get("AES", "buffer_size"))
-        pyAesCrypt.decryptFile(gl_conf_path, gl_conf_temp_path, \
+        pyAesCrypt.decryptFile(gl_content.conf_path, gl_content.conf_temp_path, \
             conf_parser.get("AES", "pass"), conf_parser.get("AES", "buffer_size"))
         
         # check build options first
-        # db_conf = sqlite3.connect(gl_conf_temp_path)
+        # db_conf = sqlite3.connect(gl_content.conf_temp_path)
         # cursor_conf = db_conf.cursor()
 
     # background update mode
@@ -1005,19 +974,19 @@ if __name__ == '__main__':
 
     if(splash_ui.exec_() == QDialog.Accepted):
         # no session or failed to login
-        if(gl_auth_email == '' or gl_auth_result != '1'):
+        if(gl_content.auth_email == '' or gl_content.auth_result != '1'):
             login_ui = LoginDialog(None)
             if(login_ui.exec_() == QDialog.Accepted):
-                gl_main_ui = MainUI()
-                gl_main_ui.show()
+                gl_content.main_ui = MainUI()
+                gl_content.main_ui.show()
             else:
                 sys.exit()
-            # gl_main_ui = MainUI()
-            # gl_main_ui.show()
+            # gl_content.main_ui = MainUI()
+            # gl_content.main_ui.show()
         else: # if there is session, and auth result is true
-            gl_auth_new_login = False
-            gl_main_ui = MainUI()
-            gl_main_ui.show()
+            gl_content.auth_new_login = False
+            gl_content.main_ui = MainUI()
+            gl_content.main_ui.show()
         app.exec_()
     else:
         sys.exit()
