@@ -19,6 +19,13 @@ def initialize():
     global SIMULATE_LOGIN9
     SIMULATE_LOGIN9 = False
 
+    # import db
+    global ITEM_LENGTH
+    global DEFAULT_DB_IMPORT_DATE
+
+    ITEM_LENGTH = 246 #length of one item in txt data: 244 + 2(\r\n)
+    DEFAULT_DB_IMPORT_DATE = '11/16/2020'
+
     ## End Global Constants...
 
 
@@ -57,11 +64,13 @@ def initialize():
     global db_temp_path
     global conf_temp_path
     global db_import_date
+    global db_import_path
 
     db_path = ''
     conf_path = ''
     db_temp_path = None
     conf_temp_path = None
     db_import_date = ''
+    db_import_path = ''
 
     ## End Global variables...

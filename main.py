@@ -644,7 +644,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         # connect slots
         # self.buildProgressSignal.connect(self.buildProgressSlot)
         self.loadingFinishedSignal.connect(self.loadingFinishedSlot)
-        # self.importProgressSignal.connect(self.importProgressSlot)
+        self.importProgressSignal.connect(self.importProgressSlot)
 
         # self.btn_save.clicked.connect(self.clickedSaveSlot)
         # self.btn_view.clicked.connect(self.clickedViewSlot)
@@ -656,7 +656,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         self.btn_brw.clicked.connect(self.clickedBrowseSlot)
 
         # menu actions
-        # self.act_import.triggered.connect(self.clickedImportSlot)
+        self.act_import.triggered.connect(self.clickedImportSlot)
         self.act_backup.triggered.connect(self.clickedBackupSlot)    
         self.act_about.triggered.connect(self.clickedAboutSlot)
         self.act_help.triggered.connect(self.clickedHelpSlot)
@@ -679,7 +679,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
         hh = (self.height() - self.loading_dialog.height()) / 2
         self.loading_dialog.move(int(ww), int(hh) - 100)
 
-        #dialog
+        # dialog
         # self.automate_dialog = AutomateDialog(self)
 
         # add status bar
@@ -714,6 +714,7 @@ class MainUI(QMainWindow, Ui_MainWindow):
             request = QtNetwork.QNetworkRequest(QtCore.QUrl(conf_parser.get("URLs", "version")))
             request.setHeader(QtNetwork.QNetworkRequest.ContentTypeHeader, 'application/x-www-form-urlencoded')
             self.networkAccessManager.post(request, data)
+
         # loading thread
         self.thread = threading.Thread(target=self.firstLoadThread)
         self.thread.setDaemon(True)
@@ -727,7 +728,9 @@ class MainUI(QMainWindow, Ui_MainWindow):
         webbrowser.open(url)
 
     def clickedBackupSlot(self):
-        if(self.thread != None or self.automate_dialog.thread != None):#already working
+        # check already working
+        # if(self.thread != None or self.automate_dialog.thread != None):#already working
+        if(self.thread != None):
             QtWidgets.QMessageBox.warning( self, \
                 conf_parser.get("APP", "name"), "The database is updating. Please wait.")
             return
@@ -780,6 +783,60 @@ class MainUI(QMainWindow, Ui_MainWindow):
         if dialog.exec_():
             dir = dialog.selectedFiles()[0]
             self.le_sd.setText(dir)
+
+    def clickedImportSlot(self):
+        # check already working
+        # if(self.thread != None or self.automate_dialog.thread != None):
+        if(self.thread != None):
+            QtWidgets.QMessageBox.warning( self, conf_parser.get("APP", "name"), "The database is updating. Please wait.")
+            return
+
+        # choose file
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        dialog = QFileDialog(self)
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        dialog.setNameFilter("Text files (*.txt);;All Files (*)")
+        dialog.setWindowTitle("Choose file to import")
+        fileName = ''
+        if dialog.exec_():
+            fileNames = dialog.selectedFiles()
+            fileName = fileNames[0]
+
+        if(len(fileName) < 5):#cancel button
+            return
+
+        if(util.check_import_text_file(fileName) == 'length'):
+            QtWidgets.QMessageBox.warning( self, conf_parser.get("APP", "name"), "Import data file record length has changed or is incorrect.")
+            util.smtpSendMessage('Import Error', 'Error: Data file record length changed')
+            return
+        if(util.check_import_text_file(fileName) == 'permission'):
+            QtWidgets.QMessageBox.warning( self, conf_parser.get("APP", "name"), "Permission denied to the local import file")
+            util.smtpSendMessage('Import Error', 'Error: Permission denied to the local import file')
+            return
+        
+        gl_content.db_import_path = fileName  
+
+        #set ui
+        self.pb_build.show()
+        self.pb_build.setFormat("Importing DEA data from file %p%")
+        self.pb_build.setValue(0)
+
+        # close db
+        self.db_data.close()
+        self.db_config.close()
+        self.db_data = self.db_config = None
+        
+        # set inital load date
+        initial_load = self.ckb_sil.isChecked()
+
+        #start thread
+        self.thread = threading.Thread(target=self.importThreadAction,kwargs={'initial_load':initial_load})
+        self.thread.setDaemon(True)
+        self.thread.start()
+
+    def importThreadAction(self, initial_load):
+        util.import_from_local_file(0, self.importProgressSignal, initial_load)
 
     def loadingFinishedSlot(self):
         self.loading_dialog.hide()
@@ -860,6 +917,25 @@ class MainUI(QMainWindow, Ui_MainWindow):
                 self, conf_parser.get("APP", "name"), 
                 "Your version of {} is up to date.".format(conf_parser.get("APP", "name")))
         self.check_update_show_latest = False
+
+    def importProgressSlot(self, value):
+        if(value == 200):
+            self.pb_build.hide()
+            self.lb_dea_import_date.setText('Data Import Date: ' + gl_content.db_import_date)
+            msg = "Successfully imported."
+            QtWidgets.QMessageBox.information( self, conf_parser.get("APP", "name"), msg)
+            self.connect_db()
+            # self.loadYearMonthComboBox()
+            # self.refreshDDR()
+
+            # hide initial load button
+            if (not self.checkDataEmpty()):
+                self.ckb_sil.hide()
+                self.lb_sil.hide()
+
+            self.thread = None
+        else:
+            self.pb_build.setValue(value)
 
     def firstLoadThread(self):
         # generate template path

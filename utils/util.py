@@ -5,6 +5,7 @@ import smtplib, ssl
 import pathlib
 import os
 import sqlite3
+import pyAesCrypt
 
 from configparser import ConfigParser
 
@@ -171,211 +172,239 @@ def smtpSendMessage(subject, content):
         print("Error: failed to send email message.", e)
 
 
-#import from local db
-#iv: initial value
-#custom_signal: signal to update ui
-#initial_load: set initial load date
-# def import_from_local_file(initial_value, custom_signal, initial_load):
-#     """
-#     the function to import data from local file
-#         param:
-#             initial_value: (int), initial value for progress bar
-#             custom_singal: (signal), signal to update the ui(progress bar)
-#             initial_load: (boolean), set initial load date
-#     """
+def import_from_local_file(initial_value, custom_signal, initial_load):
+    """
+    the function to import data from local file
+        param:
+            initial_value: (int), initial value for progress bar
+            custom_singal: (signal), signal to update the ui(progress bar)
+            initial_load: (boolean), set initial load date
+    """
 
-#     global DB_IMPORT_DATE
-#     #calc pros range
-#     left = 90 -iv
-#     import_range = int(left * 0.7)
-#     compare_range = int( (left - import_range)/3 )
-#     # prepare db
-#     cnx = sqlite3.connect(DB_TEMP_PATH)
-#     cursor = cnx.cursor()
-#     # check if the items table is empty
-#     b_old_empty = False  # old table is emtpy
-#     cursor.execute('''select count(*) from items ''')
-#     record = cursor.fetchone()
-#     if (record[0] == 0):
-#         b_old_empty = True
-#     else:  # if old table is not empty
-#         # drop old table
-#         cursor.execute('''DROP TABLE IF EXISTS items_old''')
-#         # alter  items -> items_old
-#         cursor.execute('''ALTER TABLE items RENAME TO items_old''')
-#         # create new table items
-#         cursor.execute('''CREATE TABLE items
-#           (idnumber text, bac text, schedule text, expirationDate text, fullName text, nameAdditional text, address1 text,
-#           address2 text, city text, state text, zip text, bac_subcode text, pay_ind text, status text, PRIMARY KEY(idnumber))''')
-#     # text data
-#     path = IMPORT_PATH
-#     file = open(path, 'r')
-#     total_count = int(os.stat(path).st_size / ITEM_LENGTH)
-#     update_rate = int(total_count / import_range) + 1
-#     item_count = 0
-#     while True:
-#         item_count += 1
-#         # for test
-#         # if item_count == 3:
-#         #     break
-#         # Get next line from file
-#         line = file.readline()
+    # calculate pros range
+    left = 90 -initial_value
+    import_range = int(left * 0.7)
+    compare_range = int( (left - import_range)/3 )
 
-#         # if line is empty
-#         # end of file is reached
-#         if not line:
-#             break
-#         idnumber = line[0:9].strip()
-#         bac = line[9:10].strip()
-#         schedule = line[10:26].strip()
-#         expirationDate = line[26:34].strip()
-#         fullName = line[34:74].strip().replace("'", "''")
-#         nameAdditional = line[74:114].strip().replace("'", "''")
-#         address1 = line[114:154].strip().replace("'", "''")
-#         address2 = line[154:194].strip().replace("'", "''")
-#         city = line[194:227].strip().replace("'", "''")
-#         state = line[227:229].strip()
-#         zipCode = line[229:234].strip()
-#         bacSub = line[234:235].strip()
-#         payInd = line[235:236].strip()
-#         status = line[236:244].strip()
+    # prepare db
+    context = sqlite3.connect(gl_content.db_temp_path)
+    cursor = context.cursor()
 
-#         # line = line.strip()
-#         # print("Line{}: idnumber:{}, bac:{}, schedule:{},expd:{}, fn:{}, na:{}, a1:{}, a2:{}, city:{}, state:{}, z:{},bs:{}, pi:{}, status:{}"
-#         #     .format(item_count, idnumber,bac, schedule,expirationDate, fullName, nameAdditional, address1, address2, city, state, zipCode, bacSub, payInd, status))
-#         # insert
-#         sql = ''
-#         try:
-#             sql = ''' INSERT INTO items VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')
-#               '''.format(idnumber, bac, schedule, expirationDate, fullName, nameAdditional, address1, address2, city,
-#                          state, zipCode, bacSub, payInd, status)
-#             cursor.execute(sql)
-#         except sqlite3.OperationalError as e:
-#             print('SQL Error :', sql)
-#             return
-#         # update progress bar
-#         if item_count % update_rate == 0 and custom_signal:
-#             custom_signal.emit(iv + int(item_count / update_rate))
+    # check if the items table is empty
+    b_old_empty = False  # old table is emtpy
+    cursor.execute('''select count(*) from items ''')
+    record = cursor.fetchone()
+    if (record[0] == 0):
+        b_old_empty = True
+    else:  # if old table is not empty
+        # drop old table
+        cursor.execute('''DROP TABLE IF EXISTS items_old''')
+        # alter  items -> items_old
+        cursor.execute('''ALTER TABLE items RENAME TO items_old''')
+        # create new table items
+        cursor.execute('''CREATE TABLE items
+          (idnumber text, bac text, schedule text, expirationDate text, fullName text, nameAdditional text, address1 text,
+          address2 text, city text, state text, zip text, bac_subcode text, pay_ind text, status text, PRIMARY KEY(idnumber))''')
+    
+    # text data
+    path = gl_content.db_import_path
+    file = open(path, 'r')
+    total_count = int(os.stat(path).st_size / gl_content.ITEM_LENGTH)
+    update_rate = int(total_count / import_range) + 1
+    item_count = 0
+    while True:
+        item_count += 1
 
-#         # self.pb_import.setValue( item_count * 100 / total_count  )
-#         # commit db
-#         if item_count % 50000 == 0:
-#             cnx.commit()
-#     cnx.commit()
+        # Get next line from file
+        line = file.readline()
 
+        # line is empty or end of file is reached
+        if not line:
+            break
 
-#     if custom_signal:
-#         custom_signal.emit(iv + import_range)
-#     # if old table is not empty , calculate deactivated,  new, changed
-#     if (not b_old_empty):
-#         #calculate date first
-#         if(DB_IMPORT_DATE == ''):#this error wont appear in 99.99 %
-#             DB_IMPORT_DATE = DEFAULT_DB_IMPORT_DATE
-#         last_active_date = DB_IMPORT_DATE[6:10] + "/" + DB_IMPORT_DATE[0:2] + "/" + DB_IMPORT_DATE[3:5]
-#         added_date = change_date = QDate.currentDate().toString("yyyy/MM/dd")
-#         # clear items_deactivated, items_new, items_changed
-#         # cursor.execute('''delete from items_deactivated''')
-#         # cursor.execute('''delete from items_changed''')
-#         # cursor.execute('''delete from items_new''')
-#         # process items_deactivated
-#         sql = "select items_old.* from items_old  left join items on items_old.idnumber = items.idnumber where items.idnumber IS NULL"
-#         cursor.execute(sql)
-#         records = cursor.fetchall()
-#         update_rate = int(len(records) / compare_range) + 1
-#         id = 1
-#         print('update_rate', update_rate)
-#         for row in records:
-#             try:
-#                 sql = ''' INSERT INTO items_deactivated(last_active_date,idnumber,bac,schedule,expirationDate,fullName,nameAdditional,address1,address2,city,state,zip,bac_subcode,pay_ind,status) VALUES( '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')'''\
-#                     .format( last_active_date, row[0].replace("'", "''"), row[1].replace("'", "''"),
-#                              row[2].replace("'", "''"),
-#                              row[3].replace("'", "''"), row[4].replace("'", "''"), row[5].replace("'", "''"),
-#                              row[6].replace("'", "''"),
-#                              row[7].replace("'", "''"), row[8].replace("'", "''"), row[9].replace("'", "''"),
-#                              row[10].replace("'", "''"),
-#                              row[11].replace("'", "''"), row[12].replace("'", "''"), row[13].replace("'", "''"))
-#                 cursor.execute(sql)
-#                 id += 1
-#                 # update progress bar
-#                 if (id % update_rate == 0 and custom_signal):
-#                     custom_signal.emit(iv + import_range  + int(id / update_rate))
-#             except sqlite3.OperationalError as e:
-#                 print('SQL Error :', sql)
-#         cnx.commit()
-#         if(custom_signal):
-#             custom_signal.emit(iv + import_range + compare_range)
-#         # process items_changed
-#         sql = '''select items_old.* from items left join items_old on items_old.idnumber = items.idnumber where 
-#           items.bac <> items_old.bac OR items.schedule <> items_old.schedule OR items.expirationDate <> items_old.expirationDate OR 
-#           items.fullName <> items_old.fullName OR items.nameAdditional <> items_old.nameAdditional OR items.address1 <> items_old.address1 OR 
-#           items.address2 <> items_old.address2 OR items.city <> items_old.city OR items.state <> items_old.state OR items.zip <> items_old.zip OR 
-#           items.bac_subcode <> items_old.bac_subcode OR items.pay_ind <> items_old.pay_ind'''
-#         cursor.execute(sql)
-#         records = cursor.fetchall()
-#         update_rate = int(len(records) / compare_range) + 1
-#         id = 1
-#         for row in records:
-#             try:
-#                 sql = ''' INSERT INTO items_changed(change_date,idnumber,bac,schedule,expirationDate,fullName,nameAdditional,address1,address2,city,state,zip,bac_subcode,pay_ind,status) VALUES( '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')'''\
-#                     .format( change_date, row[0].replace("'", "''"), row[1].replace("'", "''"),
-#                              row[2].replace("'", "''"),
-#                              row[3].replace("'", "''"), row[4].replace("'", "''"), row[5].replace("'", "''"),
-#                              row[6].replace("'", "''"),
-#                              row[7].replace("'", "''"), row[8].replace("'", "''"), row[9].replace("'", "''"),
-#                              row[10].replace("'", "''"),
-#                              row[11].replace("'", "''"), row[12].replace("'", "''"), row[13].replace("'", "''"))
-#                 cursor.execute(sql)
-#                 id += 1
-#                 # update progress bar
-#                 if (id % update_rate == 0 and custom_signal):
-#                     custom_signal.emit(iv + import_range + compare_range + int(id / update_rate))
-#             except sqlite3.OperationalError as e:
-#                 print('SQL Error :', sql)
-#         cnx.commit()
-#         if(custom_signal):
-#             custom_signal.emit(iv + import_range + compare_range*2)
-#         # process items_new
-#         sql = "select items.idnumber from items  left join items_old on items.idnumber = items_old.idnumber where items_old.idnumber IS NULL"
-#         cursor.execute(sql)
-#         records = cursor.fetchall()
-#         update_rate = int(len(records) / compare_range) + 1
-#         id = 1
-#         for row in records:
-#             try:
-#                 sql = ''' INSERT INTO items_new(idnumber,added_date) VALUES('{}', '{}')'''.format(row[0].replace("'", "''"), added_date)
-#                 cursor.execute(sql)
-#                 id += 1
-#                 # update progress bar
-#                 if (id % update_rate == 0 and custom_signal):
-#                     custom_signal.emit(iv + import_range + compare_range*2 + int(id / update_rate))
-#             except sqlite3.OperationalError as e:
-#                 print('SQL Error :', sql)
-#     #drop old db; no necessary any more
-#     cursor.execute('''DROP TABLE IF EXISTS items_old''')
-#     cnx.commit()
-#     #optimize db, vacuum
-#     print("Optimizing DB")
-#     cursor.execute('''VACUUM''')
-#     # final commit, close
-#     cnx.commit()
-#     file.close()
-#     cnx.close()
+        idnumber = line[0:9].strip()
+        bac = line[9:10].strip()
+        schedule = line[10:26].strip()
+        expirationDate = line[26:34].strip()
+        fullName = line[34:74].strip().replace("'", "''")
+        nameAdditional = line[74:114].strip().replace("'", "''")
+        address1 = line[114:154].strip().replace("'", "''")
+        address2 = line[154:194].strip().replace("'", "''")
+        city = line[194:227].strip().replace("'", "''")
+        state = line[227:229].strip()
+        zipCode = line[229:234].strip()
+        bacSub = line[234:235].strip()
+        payInd = line[235:236].strip()
+        status = line[236:244].strip()
 
-#     # update release date
+        # insert to db
+        sql = ''
+        try:
+            sql = ''' INSERT INTO items VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')
+              '''.format(idnumber, bac, schedule, expirationDate, fullName, nameAdditional, address1, address2, city,
+                         state, zipCode, bacSub, payInd, status)
+            cursor.execute(sql)
+        except sqlite3.OperationalError as e:
+            print('SQL Error :', sql)
+            return
+        
+        # update progress bar
+        if item_count % update_rate == 0 and custom_signal:
+            custom_signal.emit(initial_value + int(item_count / update_rate))
 
-#     cnx = sqlite3.connect(DB_CONF_TEMP_PATH)
-#     cursor = cnx.cursor()
-#     import_date = QDate.currentDate().toString("MM/dd/yyyy")
-#     if(DB_IMPORT_DATE == '' and initial_load): #first import
-#         DB_IMPORT_DATE = DEFAULT_DB_IMPORT_DATE
-#     else:
-#         DB_IMPORT_DATE = import_date
-#     cursor.execute('''UPDATE config set value='{}' where name='import_date' '''.format(DB_IMPORT_DATE))
-#     cnx.commit()
-#     cnx.close()
-#     # update data , conf db files
-#     pyAesCrypt.encryptFile(DB_TEMP_PATH, DB_PATH, AES_PASSWORD, AES_BUFFER_SIZE)
-#     pyAesCrypt.encryptFile(DB_CONF_TEMP_PATH, DB_CONF_PATH, AES_PASSWORD, AES_BUFFER_SIZE)
-#     # generate signal to update main gui
-#     if(custom_signal):
-#         custom_signal.emit(200)
+        # commit db
+        if item_count % 50000 == 0:
+            context.commit()
+    context.commit()
+
+    if custom_signal:
+        custom_signal.emit(initial_value + import_range)
+    
+    # if old table is not empty , calculate deactivated,  new, changed
+    if (not b_old_empty):
+        # calculate date first
+        if(gl_content.db_import_date == ''): #this error wont appear in 99.99 %
+            gl_content.db_import_date = gl_content.DEFAULT_DB_IMPORT_DATE
+
+        last_active_date = gl_content.db_import_date[6:10] + "/" + gl_content.db_import_date[0:2] + "/" + gl_content.db_import_date[3:5]
+        added_date = change_date = QDate.currentDate().toString("yyyy/MM/dd")
+
+        # process items_deactivated
+        sql = "select items_old.* from items_old  left join items on items_old.idnumber = items.idnumber where items.idnumber IS NULL"
+        cursor.execute(sql)
+        records = cursor.fetchall()
+        update_rate = int(len(records) / compare_range) + 1
+
+        id = 1
+        print('update_rate', update_rate)
+        for row in records:
+            try:
+                sql = ''' INSERT INTO items_deactivated(last_active_date,idnumber,bac,schedule,expirationDate,fullName,nameAdditional,address1,address2,city,state,zip,bac_subcode,pay_ind,status) VALUES( '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')'''\
+                    .format( last_active_date, row[0].replace("'", "''"), row[1].replace("'", "''"),
+                             row[2].replace("'", "''"),
+                             row[3].replace("'", "''"), row[4].replace("'", "''"), row[5].replace("'", "''"),
+                             row[6].replace("'", "''"),
+                             row[7].replace("'", "''"), row[8].replace("'", "''"), row[9].replace("'", "''"),
+                             row[10].replace("'", "''"),
+                             row[11].replace("'", "''"), row[12].replace("'", "''"), row[13].replace("'", "''"))
+                cursor.execute(sql)
+                id += 1
+
+                # update progress bar
+                if (id % update_rate == 0 and custom_signal):
+                    custom_signal.emit(initial_value + import_range  + int(id / update_rate))
+            except sqlite3.OperationalError as e:
+                print('SQL Error :', sql)
+        
+        context.commit()
+        if(custom_signal):
+            custom_signal.emit(initial_value + import_range + compare_range)
+
+        # process items_changed
+        sql = '''select items_old.* from items left join items_old on items_old.idnumber = items.idnumber where 
+            items.bac <> items_old.bac OR items.schedule <> items_old.schedule OR items.expirationDate <> items_old.expirationDate OR 
+            items.fullName <> items_old.fullName OR items.nameAdditional <> items_old.nameAdditional OR items.address1 <> items_old.address1 OR 
+            items.address2 <> items_old.address2 OR items.city <> items_old.city OR items.state <> items_old.state OR items.zip <> items_old.zip OR 
+            items.bac_subcode <> items_old.bac_subcode OR items.pay_ind <> items_old.pay_ind'''
+        cursor.execute(sql)
+        records = cursor.fetchall()
+        update_rate = int(len(records) / compare_range) + 1
+    
+        id = 1
+        for row in records:
+            try:
+                sql = ''' INSERT INTO items_changed(change_date,idnumber,bac,schedule,expirationDate,fullName,nameAdditional,address1,address2,city,state,zip,bac_subcode,pay_ind,status) VALUES( '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')'''\
+                    .format( change_date, row[0].replace("'", "''"), row[1].replace("'", "''"),
+                             row[2].replace("'", "''"),
+                             row[3].replace("'", "''"), row[4].replace("'", "''"), row[5].replace("'", "''"),
+                             row[6].replace("'", "''"),
+                             row[7].replace("'", "''"), row[8].replace("'", "''"), row[9].replace("'", "''"),
+                             row[10].replace("'", "''"),
+                             row[11].replace("'", "''"), row[12].replace("'", "''"), row[13].replace("'", "''"))
+                cursor.execute(sql)
+                id += 1
+
+                # update progress bar
+                if (id % update_rate == 0 and custom_signal):
+                    custom_signal.emit(initial_value + import_range + compare_range + int(id / update_rate))
+            except sqlite3.OperationalError as e:
+                print('SQL Error :', sql)
+        
+        context.commit()
+        if(custom_signal):
+            custom_signal.emit(initial_value + import_range + compare_range*2)
+
+        # process items_new
+        sql = "select items.idnumber from items  left join items_old on items.idnumber = items_old.idnumber where items_old.idnumber IS NULL"
+        cursor.execute(sql)
+        records = cursor.fetchall()
+        update_rate = int(len(records) / compare_range) + 1
+        
+        id = 1
+        for row in records:
+            try:
+                sql = ''' INSERT INTO items_new(idnumber,added_date) VALUES('{}', '{}')'''.format(row[0].replace("'", "''"), added_date)
+                cursor.execute(sql)
+                id += 1
+                # update progress bar
+                if (id % update_rate == 0 and custom_signal):
+                    custom_signal.emit(initial_value + import_range + compare_range*2 + int(id / update_rate))
+            except sqlite3.OperationalError as e:
+                print('SQL Error :', sql)
+    
+    # drop old db; no necessary any more
+    cursor.execute('''DROP TABLE IF EXISTS items_old''')
+    context.commit()
+   
+    # optimize db, vacuum
+    print("Optimizing DB")
+    cursor.execute('''VACUUM''')
+   
+    # final commit, close
+    context.commit()
+    file.close()
+    context.close()
+
+    # update release date
+    context = sqlite3.connect(gl_content.conf_temp_path)
+    cursor = context.cursor()
+    import_date = QDate.currentDate().toString("MM/dd/yyyy")
+    if(gl_content.db_import_date == '' and initial_load): #first import
+        gl_content.db_import_date = gl_content.DEFAULT_DB_IMPORT_DATE
+    else:
+        gl_content.db_import_date = import_date
+    cursor.execute('''UPDATE config set value='{}' where name='import_date' '''.format(
+        gl_content.db_import_date))
+    context.commit()
+    context.close()
+
+    # update data , conf db files
+    pyAesCrypt.encryptFile(gl_content.db_temp_path, gl_content.db_path, \
+        gl_content.AES_PASSWORD, gl_content.AES_BUFFER_SIZE)
+    pyAesCrypt.encryptFile(gl_content.conf_temp_path, gl_content.conf_path, \
+        gl_content.AES_PASSWORD, gl_content.AES_BUFFER_SIZE)
+
+    # generate signal to update main gui
+    if(custom_signal):
+        custom_signal.emit(200)
+
+def check_import_text_file(filename):
+    """
+    the function to check the input db(.txt) file is valid or not
+        (check the length of first line's length)
+    """
+
+    try:
+        file = open(filename, 'rb') 
+    except PermissionError as ex:
+        return "permission"
+
+    line = file.readline()
+    file.close()
+
+    if(len(line) != gl_content.ITEM_LENGTH):
+        print('length mismatch ', len(line))
+        return "length"
+
+    return True
+
